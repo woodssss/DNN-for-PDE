@@ -9,6 +9,15 @@ In this part, we consider following examples.
 ## Transport equation with zero b.c
 Consider 1d transport equation f_t + v f_x = 0. The constraints consist of two parts: IC and PDE. Here 
 we solve the transport equation by two ways: continuous time method and discrete time method. The main difference between these two methods is whether take time varibale t as input of NN.
+## Continuous time approach
+```
+run tspnn.py
+```
+
+## Discrete time approach
+```
+run tspnndt.py
+```
 
 
 
