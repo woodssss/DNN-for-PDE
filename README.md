@@ -27,3 +27,10 @@ run fp_chv_nn.py
 ```
 
 
+
+
+# Reference
+[Solving Nonlinear and High-Dimensional Partial Differential Equations via Deep Learning](https://arxiv.org/pdf/1811.08782.pdf)\
+[Physics Informed Neural Networks](https://github.com/maziarraissi/PINNs)
+
+
