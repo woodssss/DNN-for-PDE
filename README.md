@@ -20,7 +20,7 @@ run tspnndt.py
 ```
 ## Fokker Planck equation with zero b.c
 Consider f_t = xf_x+f+f_xx. Because this evolution preserve positivity and total mass, in order to ensure 
-these two physics properties, one either uses two constraints in error function, or do change of variable. Here we use the second way, and define f(t,x) = exp(-g(t,x))/c(t), where c(t) is a normalized constant that only depends on time. And we now working with system g_t = xg_x + g_xx - g_x^2 -1 + I(t), here I(t) = \frac{\int g_t exp(-g) dx} {\int exp(-g) dx}. See detail in
+these two physics properties, one either uses two constraints in error function, or do change of variable. Here we use the second way, and define f(t,x) = exp(-g(t,x))/c(t), where c(t) is a normalized constant that only depends on time. And we now working with system g_t = xg_x + g_xx - g_x^2 -1 + I(t), here I(t) = \frac{\int g_t exp(-g) dx} {\int exp(-g) dx}. See detail in Reference.
 ## Continuous time approach
 ```
 run fp_chv_nn.py
