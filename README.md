@@ -36,7 +36,16 @@ Define f(t,x) = exp(-g(t,x))/c(t), where c(t) is a normalized constant that only
 run fp_chv_nn.py
 ```
 Note that above two approaches are continuous time approachs, which is unlike to perform well on stiff system. Thus we introduce discrete time approach in following part, the stiffness problem can be resolved by leveraging the high order Runge-Kutta methods.
-
+### Discrete time method
+In this part, we consider a modified system: to see the long time behavior, we scale time variable t by t` = \eps t, then we have following new system
+```
+f_t = 1/eps (xf_x+f+f_xx) 
+```
+This is a stiff system as eps goes to 0. To resolve the stiffness, we use 100 stage implicit Runge Kutta method, and let dt = 0.1, eps = 0.05, we see approximation at t=0.1 matches the analytical equilibrium very well.
+```
+run fpnndt.py
+```
+However, if we use even smaller eps, the convergence rate slows down dramatically. The is caused by the appearance of eps in the error function, which significantly slow down the convergence process. We will try to accelerate the convergence process from optimization aspect.
 
 
 # Reference
