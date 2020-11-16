@@ -5,7 +5,7 @@ import time
 
 
 class fpnn:
-    def __init__(self, layers, x0, t0, f0, lx, nx):
+    def __init__(self, layers, x0, t0, f0, lx, nx, eps, train_set):
         self.layers = layers
         self.x0 = x0
         self.ti = t0
@@ -13,11 +13,29 @@ class fpnn:
         self.lx = lx
         self.nx = nx
 
+        self.xts = train_set[:, 0:1]
+        self.tts = train_set[:, 1:2]
+
+        self.mylb = np.ones_like(self.x0)*(-lx/2)
+
+        self.myrb = np.ones_like(self.x0) * (lx / 2)
+
+        self.eps = eps
+
         self.weights, self.biases = self.initialize_NN(layers)
 
         # tf placeholder
         self.x = tf.placeholder(tf.float32, shape=[None, self.x0.shape[1]])
+
+        self.x_train = tf.placeholder(tf.float32, shape=[None, self.xts.shape[1]])
+
+        self.xlb = tf.placeholder(tf.float32, shape=[None, self.x0.shape[1]])
+
+        self.xrb = tf.placeholder(tf.float32, shape=[None, self.x0.shape[1]])
+
         self.t = tf.placeholder(tf.float32, shape=[None, self.ti.shape[1]])
+
+        self.t_train = tf.placeholder(tf.float32, shape=[None, self.tts.shape[1]])
 
         self.t0 = tf.placeholder(tf.float32, shape=[None, self.ti.shape[1]])
 
@@ -27,7 +45,11 @@ class fpnn:
 
         self.f0_pred = self.f_nn(self.x, self.t0)
 
-        self.pde = self.pde_nn(self.x, self.t)
+        self.predbcl = self.f_nn(self.xlb, self.t)
+
+        self.predbcr = self.f_nn(self.xrb, self.t)
+
+        self.pde = self.pde_nn(self.x_train, self.t_train)
 
         self.mass = self.get_I(self.t)
 
@@ -35,8 +57,11 @@ class fpnn:
 
         # loss
 
-        self.loss = tf.reduce_mean(tf.square(self.f0_pred - self.f0)) + tf.reduce_mean(tf.square(self.pde)) + \
-                    tf.reduce_mean(tf.square(self.mass-self.m_given))
+        self.loss = tf.reduce_mean(tf.square(self.f0_pred - self.f0)) + \
+                    tf.reduce_mean(tf.square(self.pde)) + \
+                    tf.reduce_mean(tf.square(self.mass-self.m_given)) + tf.reduce_mean(tf.square(self.predbcl)) + \
+                    tf.reduce_mean(tf.square(self.predbcr))
+
 
         self.optimizer = tf.contrib.opt.ScipyOptimizerInterface(self.loss,
                                                                 method='L-BFGS-B',
@@ -44,7 +69,8 @@ class fpnn:
                                                                          'maxfun': 50000,
                                                                          'maxcor': 50,
                                                                          'maxls': 50,
-                                                                         'ftol': 1.0 * np.finfo(float).eps})
+                                                                         'ftol': 10**-5 })
+                                                                         #'ftol': 1.0 * np.finfo(float).eps})
 
         self.optimizer_Adam = tf.train.AdamOptimizer()
         self.train_op_Adam = self.optimizer_Adam.minimize(self.loss)
@@ -119,18 +145,28 @@ class fpnn:
 
         return I
 
+    # def pde_nn(self, x, t):
+    #     f = self.f_nn(x, t)
+    #     f_x = tf.gradients(f, x)[0]
+    #     f_t = tf.gradients(f, t)[0]
+    #     f_xx = tf.gradients(f_x, x)[0]
+    #
+    #     pde = f_t - 1/self.eps*(f - x*f_x - f_xx)
+    #     return pde
+
     def pde_nn(self, x, t):
         f = self.f_nn(x, t)
-        f_x = tf.gradients(f, x)[0]
         f_t = tf.gradients(f, t)[0]
+        f_x = tf.gradients(f, x)[0]
         f_xx = tf.gradients(f_x, x)[0]
 
-        pde = f_t - f - x*f_x - f_xx
+        pde = self.eps*f_t - (f + x*f_x + f_xx)
         return pde
 
     def train(self, nIter):
 
-        tf_dict = {self.x: self.x0, self.t: self.ti, self.t0: 0*self.x0}
+        tf_dict = {self.x: self.x0, self.t: self.ti, self.t0: 0*self.x0,
+                   self.xlb: self.mylb, self.xrb: self.myrb, self.x_train: self.xts, self.t_train: self.tts}
 
         start_time = time.time()
         for it in range(nIter):
@@ -162,27 +198,44 @@ class fpnn:
 if __name__ == "__main__":
     nx = 400
     nt = nx
-    lx = 8
+    lx = 10
+
+    N_pair = 800
 
     x0 = np.sort((np.random.rand(1, nx)-0.5) * lx).T
 
-    t0 = 2*np.sort(np.random.rand(1, nx)).T
+    x_train = ((np.random.rand(1, N_pair)-0.5) * lx).T
 
-    T = 1* np.ones((nt, 1))
+    t0 = np.sort(np.random.rand(1, nx)).T
 
-    f0 = np.exp(-5 * (x0-1) ** 2)*(np.pi/5)**(-0.5)
+    t_train = ((np.random.rand(1, N_pair))).T
+
+    train_set = np.concatenate((x_train, t_train), axis=1)
+
+    T = 0.5 * np.ones((nt, 1))
+
+    T0 = 0 * np.ones((nt, 1))
+
+    f0 = np.exp(-1 * (x0) ** 2)*(np.pi/1)**(-0.5)
+
+    fexact = np.exp(-0.5 * (x0) ** 2)*(np.pi*2)**(-0.5)
 
     xn = np.sort(np.random.rand(1, nx) * lx * 2).T
 
-    layers = [2, 80, 80, 80, 1]
+    layers = [2, 200, 200, 200, 200, 1]
 
     v=1
 
-    mdl = fpnn(layers, x0, t0, f0, lx ,nx)
+    eps = 0.005
 
-    mdl.train(20000)
+    mdl = fpnn(layers, x0, t0, f0, lx, nx, eps, train_set)
+
+    mdl.train(15000)
     pd = mdl.predict(x0, T)
-    plt.plot(x0, pd, x0, f0)
+    pd0 = mdl.predict(x0, T0)
+    plt.plot(x0, pd, 'r', x0, f0, 'g', x0, fexact, 'b*', x0, pd0, 'k')
+    plt.gca().legend(('approx f(T,x)', 'f(0,x)', 'Equilibrium', 'approx f(0,x)'))
+    #plt.title('eps = ', eps)
     plt.show()
 
 
