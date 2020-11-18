@@ -47,6 +47,16 @@ run fpnndt.py
 ```
 However, if we use even smaller eps, the convergence rate slows down dramatically. The is caused by the appearance of eps in the error function, which significantly slow down the convergence process. We will try to accelerate the convergence process from optimization aspect.
 
+# VPFP system
+Now let us consider VPFP system, i.e
+```
+f_t + v f_x = 1/eps (vf_v + phi_x f_v + f + f_vv)
+```
+And phi(t,x) satisfies
+```
+phi_xx = \int f dv - h(x)
+```
+
 
 # Reference
 [Solving Nonlinear and High-Dimensional Partial Differential Equations via Deep Learning](https://arxiv.org/pdf/1811.08782.pdf)\
