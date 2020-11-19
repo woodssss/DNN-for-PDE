@@ -111,14 +111,6 @@ class vpfpnnct:
                     tf.reduce_mean(tf.square(self.pde_x_lb - self.pde_x_rb)) + \
                     tf.reduce_mean(tf.square(self.mass - self.mass_given))
 
-        self.optimizer = tf.contrib.opt.ScipyOptimizerInterface(self.loss,
-                                                                method='L-BFGS-B',
-                                                                options={'maxiter': 10000,
-                                                                         'maxfun': 50000,
-                                                                         'maxcor': 50,
-                                                                         'maxls': 50,
-                                                                         'ftol': 1.0 * np.finfo(float).eps})
-
         self.optimizer_Adam = tf.train.AdamOptimizer()
         self.train_op_Adam = self.optimizer_Adam.minimize(self.loss)
 
@@ -210,12 +202,6 @@ class vpfpnnct:
 
         h = self.h(x_ori)
 
-        #rep = tf.constant([self.ntm, 1])
-
-        #h_rep = tf.tile(h, rep)
-
-        #print('s', lap_phi.shape, rho.shape, h_rep.shape)
-
         pde = lap_phi + rho - h
 
         return pde
@@ -243,8 +229,6 @@ class vpfpnnct:
 
         id = tf.reshape(id, [self.nxm * self.nvm * self.ntm])
 
-        print('sid', id.shape, f.shape)
-
         rho = tf.math.segment_sum(f, id)*self.lv/self.nvm
 
         return rho
@@ -256,8 +240,6 @@ class vpfpnnct:
         return h
 
     def get_mass(self, t, x, v):
-
-        print('now getting mass')
 
         rho = self.get_rho_nn(t, x, v)
 
@@ -295,12 +277,6 @@ class vpfpnnct:
                 print('It: %d, Loss: %.3e, Time: %.2f' %
                       (it, loss_value, elapsed))
                 start_time = time.time()
-
-        self.optimizer.minimize(self.sess,
-                                feed_dict=tf_dict,
-                                fetches=[self.loss],
-                                loss_callback= None)
-        # loss_callback=self.callback)
 
     def phi_predict(self, t, x):
 
@@ -403,17 +379,12 @@ if __name__ == "__main__":
 
     xxm, vvm = np.meshgrid(x_d_ori, v_d_ori)
 
-    # res = np.ones((nxm * nvm, 2))
-    # for i in range(xm.shape[0]):
-    #     res[i * nvm:(i + 1) * nvm, [0]] = xm[i][0] * np.ones_like(vm)
-    #     res[i * nvm:(i + 1) * nvm, [1]] = vm
-
     # Take x,v as input, ouput f star, f bar and phi
     layers = [3, 120, 120, 120, 1]
 
     layers2 = [2, 60, 60, 1]
 
-    eps = 1
+    eps = 0.005
 
     mdl = vpfpnnct(layers, layers2, tm, tm_ori, xm, xm_ori, vm, ntm, nxm, nvm, lx, lv, N_pair, eps, f_0_train, train_set)
 
@@ -427,16 +398,9 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.gca(projection='3d')
 
-    print('surf', xxm.shape, vvm.shape, pd_m.shape)
-
-    # surf = ax.scatter3D(x_train, v_train, pd)
     surf = ax.plot_surface(xxm, vvm, pd_m)
 
-    # plt.plot_surface(xx, vv, f_p)
-    # plt.plot(x0, pd[:,-1], x0, f0)
     plt.show()
-
-    #phi_pd, _, _ = mdl.phi_predict(xm_ori)
 
     phi_pd = mdl.phi_predict(tm_ori, xm_ori)
 
@@ -444,15 +408,11 @@ if __name__ == "__main__":
 
     print('shape', phi_pd.shape, rho_pd.shape, xm.shape, vm.shape)
 
-    #phi_pd = phi_pd[0]
-
     rho_pd0 = rho_pd[0:nxm]
 
     rho_pd_mid = rho_pd[(np.int32(ntm/2)-1)*nxm: np.int32(ntm/2)*nxm]
 
     rho_pd_end = rho_pd[(ntm-1)*nxm :]
-
-    #print('ssss', rho_pd0.shape, rho_pd_mid.shape, rho_pd_end.shape)
 
     plt.plot(x_d_ori, rho_pd0, 'r', x_d_ori, rho_pd_mid, 'k', x_d_ori, rho_pd_end, 'b *', x_d_ori, rho0, 'g')
     plt.gca().legend(('rho0_pred', 'rho_zp5', 'rho_1', 'exact_rho0'))
