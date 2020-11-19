@@ -58,6 +58,10 @@ And phi(t,x) satisfies
 ```
 phi_xx = \int f dv - h(x)
 ```
+In this example, we use two separate NN, the first one is to approximate vlasov-fokker-planck equation and the other one is to for the poisson equation. The error function contains 6 parts: 1. error of VFP; 2. error of poisson equation; 3. error of initial condition; 4. zero boundary condition on v direction; 5. periodic B.C on x; 6. conservation of total mass.
+```
+run vpfpnnct.py
+```
 
 
 # Reference
