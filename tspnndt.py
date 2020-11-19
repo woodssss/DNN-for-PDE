@@ -33,14 +33,6 @@ class tspnn:
 
         self.loss = tf.reduce_mean(tf.square(self.pde_ic - self.f0_rep_tf))
 
-        self.optimizer = tf.contrib.opt.ScipyOptimizerInterface(self.loss,
-                                                                method='L-BFGS-B',
-                                                                options={'maxiter': 50000,
-                                                                         'maxfun': 50000,
-                                                                         'maxcor': 50,
-                                                                         'maxls': 50,
-                                                                         'ftol': 1.0 * np.finfo(float).eps})
-
         self.optimizer_Adam = tf.train.AdamOptimizer()
         self.train_op_Adam = self.optimizer_Adam.minimize(self.loss)
 
@@ -50,9 +42,6 @@ class tspnn:
 
         init = tf.global_variables_initializer()
         self.sess.run(init)
-
-    def callback(self, loss):
-        print('Loss:', loss)
 
     def initialize_NN(self, layers):
         weights = []
@@ -82,6 +71,7 @@ class tspnn:
         W = weights[-1]
         b = biases[-1]
         Y = tf.add(tf.matmul(H, W), b)
+        Y = tf.nn.softplus(Y)
         return Y
 
     def f_nn(self, x):
@@ -125,11 +115,6 @@ class tspnn:
                       (it, loss_value, elapsed))
                 start_time = time.time()
 
-        self.optimizer.minimize(self.sess,
-                                feed_dict=tf_dict,
-                                fetches=[self.loss],
-                                loss_callback=self.callback)
-
     def predict(self, x):
 
         tf_dict = {self.x: x}
@@ -141,17 +126,22 @@ class tspnn:
 
 
 if __name__ == "__main__":
-    nx = 200
+    nx = 300
     lx = 2 * np.pi
 
     # q is RKq method
     q=4
 
-    RK4 = np.array([[0, 0, 0, 0],
-                    [0.5, 0, 0, 0],
-                    [0, 0.5, 0, 0],
-                    [0, 0, 1, 0],
-                    [1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0]])
+    # RK4 = np.array([[0, 0, 0, 0],
+    #                 [0.5, 0, 0, 0],
+    #                 [0, 0.5, 0, 0],
+    #                 [0, 0, 1, 0],
+    #                 [1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0]])
+    RK4 = np.array([[0.5, 0, 0, 0],
+                    [1/6, 0.5, 0, 0],
+                    [-0.5, 0.5, 0.5, 0],
+                    [1.5, -1.5, 0.5, 0.5],
+                    [1.5, -1.5, 0.5, 0.5]])
 
     RK4 = np.float32(RK4)
 
@@ -172,9 +162,14 @@ if __name__ == "__main__":
 
     mdl = tspnn(layers, x0, dt, f0, v, q, RK4)
 
-    mdl.train(15000)
+    mdl.train(5000)
     pd = mdl.predict(x0)
-    plt.plot(x0, pd[:,:-1], x0, f0)
+    pd_cb = np.sum(pd[:, 0:4]* RK4[[-1], :], axis=1)
+    #pd_cb = (tf.reduce_sum(pd[:, 0:4] * RK4[[-1], :], 1)[:, None]).numpy()
+
+    print('shape', pd.shape, pd_cb.shape)
+
+    plt.plot(x0, f0, '*r', x0, pd[:, -1], 'g')
     plt.show()
 
 

@@ -5,17 +5,23 @@ import time
 
 
 class tspnn:
-    def __init__(self, layers, x0, t0, f0, v):
+    def __init__(self, layers, t0, x0, t_train, x_train, f0, v):
         self.layers = layers
         self.x0 = x0
         self.ti = t0
         self.f0 = f0
-        self.v= v
+
+        self.t_train, self.x_train = t_train, x_train
+
+        self.v = v
         self.weights, self.biases = self.initialize_NN(layers)
 
         # tf placeholder
         self.x = tf.placeholder(tf.float32, shape=[None, self.x0.shape[1]])
         self.t = tf.placeholder(tf.float32, shape=[None, self.ti.shape[1]])
+
+        self.t_ip = tf.placeholder(tf.float32, shape=[None, self.x_train.shape[1]])
+        self.x_ip = tf.placeholder(tf.float32, shape=[None, self.t_train.shape[1]])
 
         self.t0 = tf.placeholder(tf.float32, shape=[None, self.ti.shape[1]])
 
@@ -25,7 +31,7 @@ class tspnn:
 
         self.f0_pred = self.f_nn(self.x, self.t0)
 
-        self.pde = self.pde_nn(self.x, self.t)
+        self.pde = self.pde_nn(self.x_ip, self.t_ip)
 
         # loss
 
@@ -39,8 +45,12 @@ class tspnn:
                                                                          'maxls': 50,
                                                                          'ftol': 1.0 * np.finfo(float).eps})
 
+        #self.optimizer_sgd = tf.keras.optimizers.Adam()
+        #self.train_op_sgd = self.optimizer_sgd.minimize(self.loss)
+
         self.optimizer_Adam = tf.train.AdamOptimizer()
         self.train_op_Adam = self.optimizer_Adam.minimize(self.loss)
+
 
         # tf session
         self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,
@@ -96,11 +106,13 @@ class tspnn:
 
     def train(self, nIter):
 
-        tf_dict = {self.x: self.x0, self.t: self.ti, self.t0: 0*self.x0}
+        tf_dict = {self.x: self.x0, self.t: self.ti, self.t0: 0*self.x0, self.t_ip: self.t_train,
+                   self.x_ip: self.x_train}
 
         start_time = time.time()
         for it in range(nIter):
             self.sess.run(self.train_op_Adam, tf_dict)
+            #self.sess.run(self.train_op_sgd, tf_dict)
 
             # Print
             if it % 1000 == 0:
@@ -110,10 +122,10 @@ class tspnn:
                       (it, loss_value, elapsed))
                 start_time = time.time()
 
-        self.optimizer.minimize(self.sess,
-                                feed_dict=tf_dict,
-                                fetches=[self.loss],
-                                loss_callback=self.callback)
+        # self.optimizer.minimize(self.sess,
+        #                         feed_dict=tf_dict,
+        #                         fetches=[self.loss],
+        #                         loss_callback=self.callback)
 
     def predict(self, x, t):
 
@@ -128,6 +140,13 @@ class tspnn:
 if __name__ == "__main__":
     nx = 200
     lx = 2 * np.pi
+    T = 1
+
+    N = 500
+
+    t_train = np.sort(np.random.rand(1, N) * T).T
+
+    x_train = np.sort((np.random.rand(1, N)-0.5) * lx).T
 
     x0 = np.sort(np.random.rand(1, nx) * lx).T
 
@@ -143,7 +162,7 @@ if __name__ == "__main__":
 
     v=1
 
-    mdl = tspnn(layers, x0, t0, f0, v)
+    mdl = tspnn(layers, t0, x0, t_train, x_train, f0, v)
 
     mdl.train(10000)
     pd = mdl.predict(x0, T)
